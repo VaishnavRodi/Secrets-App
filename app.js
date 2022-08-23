@@ -4,7 +4,10 @@ const express = require('express');
 const ejs = require('ejs');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const md5 = require('md5');
+
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
+
 
 const app = express();
 
@@ -43,42 +46,57 @@ app.get('/register', (req,res) => {
   res.render("register");
 });
 
+
+
 app.post('/register', (req,res) => {
-  const newUser = new User({
-    email : req.body.username,
-    password : md5(req.body.password)
-  });
 
-  newUser.save((err) => {
+  bcrypt.hash(req.body.password, saltRounds).then(function(hash) {
 
-    if(err){
-      console.log(err);
-    } else{
-      res.render('secrets');
-    }
+    const newUser = new User({
+      email : req.body.username,
+      password : hash
+    });
 
-  });
+    newUser.save((err) => {
+
+      if(err){
+        console.log(err);
+      } else{
+        res.render('secrets');
+      }
+
+    });
+
+});
+
 });
 
 app.post('/login', (req,res) => {
   const username = req.body.username;
-  const password = md5(req.body.password);
+  const password = req.body.password;
 
   User.findOne({email : username}, (err, foundUser) => {
 
     if(err){
       console.log(err);
-    } else{
-      if(foundUser.password === password){
-        res.render('secrets');
-      } else if(foundUser.password !== password){
-        console.log("Password is wrong, please enter correct password.");
+    }
+    else{
+      if(foundUser){
+        bcrypt.compare(password, foundUser.password, function(error, result) {
+          if(result === true){
+            res.render('secrets');
+          } else if(err === true){
+            console.log(error);
+          } else if(password !== foundUser.password){
+            console.log("Password entered is incorrect. Please enter correct password..");
+          }
+        });
+
       }
     }
 
   });
 });
-
 
 
 
